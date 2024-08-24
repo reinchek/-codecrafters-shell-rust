@@ -1,6 +1,8 @@
 #[allow(unused_imports)]
 use std::io::{self, Write};
 
+const CMD_EXIT: &str = "exit";
+
 fn main() {
     // Standard input handler
     let stdin = io::stdin();
@@ -19,6 +21,20 @@ fn main() {
             break;
         }
 
-        println!("{}: command not found", command);
+        let command_parts: Vec<&str> = command.split(" ").collect();
+
+        match command_parts[0] {
+            CMD_EXIT => {
+                let mut exit_code = 0;
+                if command_parts.len() > 1 {
+                    exit_code = command_parts[1].parse::<i32>().unwrap_or(0);
+                }
+
+                std::process::exit(exit_code);
+            }
+            _ => {
+                println!("{}: command not found", command);
+            }
+        }
     }
 }
