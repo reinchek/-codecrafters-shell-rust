@@ -3,6 +3,9 @@ use std::io::{self, Write};
 
 const CMD_EXIT: &str = "exit";
 const CMD_ECHO: &str = "echo";
+const CMD_TYPE: &str = "type";
+
+const COMMANDS: [&str; 3] = [CMD_ECHO, CMD_EXIT, CMD_TYPE];
 
 fn main() {
     // Standard input handler
@@ -35,7 +38,17 @@ fn main() {
             }
             CMD_ECHO => {
                 let echo_string = command.replacen(CMD_ECHO, "", 1);
-                println!("{}", echo_string.trim_start());
+                println!("{}", echo_string.trim());
+            }
+            CMD_TYPE => {
+                if command_parts.len() > 1 {
+                    // Check if the specified parameter exists as builtin command
+                    if COMMANDS.contains(&command_parts[1]) {
+                        println!("{} is a shell builtin", command_parts[1]);
+                    } else {
+                        println!("{}: not found", command_parts[1]);
+                    }
+                }
             }
             _ => {
                 println!("{}: command not found", command);
