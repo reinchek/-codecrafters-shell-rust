@@ -2,6 +2,7 @@
 use std::io::{self, Write};
 
 const CMD_EXIT: &str = "exit";
+const CMD_ECHO: &str = "echo";
 
 fn main() {
     // Standard input handler
@@ -31,6 +32,10 @@ fn main() {
                 }
 
                 std::process::exit(exit_code);
+            }
+            CMD_ECHO => {
+                let echo_string = command.replacen(CMD_ECHO, "", 1);
+                println!("{}", echo_string.trim_start());
             }
             _ => {
                 println!("{}: command not found", command);
