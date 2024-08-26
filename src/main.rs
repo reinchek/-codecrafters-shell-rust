@@ -5,14 +5,10 @@ use std::{
     fmt::format,
     fs,
     io::{self, Write},
+    process::Command,
 };
 
 const ENV_PATH: &str = "PATH";
-const CMD_EXIT: &str = "exit";
-const CMD_ECHO: &str = "echo";
-const CMD_TYPE: &str = "type";
-
-const COMMANDS: [&str; 3] = [CMD_ECHO, CMD_EXIT, CMD_TYPE];
 
 fn main() {
     // Standard input handler
@@ -36,45 +32,16 @@ fn main() {
 
                 let command_parts: Vec<&str> = command.split(" ").collect();
 
-                match command_parts[0] {
-                    CMD_EXIT => {
-                        let mut exit_code = 0;
-                        if command_parts.len() > 1 {
-                            exit_code = command_parts[1].parse::<i32>().unwrap_or(0);
-                        }
-
-                        std::process::exit(exit_code);
+                match locate_program(command_parts[0].to_string()) {
+                    Some(command_path) => {
+                        let output = Command::new(command_path)
+                            .args([command.replacen(command_parts[0], "", 1).trim()])
+                            .output()
+                            .expect("Failed to execute process");
+                        io::stdout().write_all(&output.stdout).unwrap();
                     }
-                    CMD_ECHO => {
-                        let echo_string = command.replacen(CMD_ECHO, "", 1);
-                        println!("{}", echo_string.trim());
-                    }
-                    CMD_TYPE => {
-                        if command_parts.len() > 1 {
-                            let paths: Vec<&str> = path.split(":").collect();
-                            let mut type_output: String = String::new();
-
-                            // Before: checks for builtin ones
-                            if COMMANDS.contains(&command_parts[1]) {
-                                println!("{} is a shell builtin", command_parts[1]);
-                            } else {
-                                for path_item in paths {
-                                    // Check if the specified command exists in path
-                                    let command_path = f!("{path_item}/{}", command_parts[1]);
-                                    if fs::metadata(&command_path).is_ok() {
-                                        type_output =
-                                            f!("{} is {}", command_parts[1], command_path);
-                                        break;
-                                    } else {
-                                        type_output = f!("{}: not found", command_parts[1]);
-                                    }
-                                }
-                                println!("{type_output}");
-                            }
-                        }
-                    }
-                    _ => {
-                        println!("{}: command not found", command);
+                    None => {
+                        println!("Command not found");
                     }
                 }
             }
@@ -82,5 +49,27 @@ fn main() {
         Err(e) => {
             eprintln!("Error: {e}");
         }
+    }
+}
+
+// Locate program. If exists return Some(program's path)
+fn locate_program(command_name: String) -> Option<String> {
+    // Check for PATH environment variable
+    match env::var(ENV_PATH) {
+        Ok(path) => {
+            let paths: Vec<&str> = path.split(":").collect();
+            let mut command_found: Option<String> = None;
+
+            for path_item in paths {
+                // Check if the specified command exists in path
+                let command_path = f!("{path_item}/{command_name}");
+
+                if fs::metadata(&command_path).is_ok() {
+                    return Some(command_path);
+                }
+            }
+            None
+        }
+        Err(_) => None,
     }
 }
