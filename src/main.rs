@@ -1,8 +1,9 @@
+use std::char::from_u32_unchecked;
 #[allow(unused_imports)]
 use std::env;
 use std::format as f;
+use std::os::unix::process::CommandExt;
 use std::{
-    fmt::format,
     fs,
     io::{self, Write},
     process::Command,
@@ -30,15 +31,28 @@ fn main() {
                     break;
                 }
 
-                let command_parts: Vec<&str> = command.split(" ").collect();
+                let command_parts: Vec<&str> = command.trim().split(" ").collect();
+                let mut command_found: Option<String> = None;
 
-                match locate_program(command_parts[0].to_string()) {
+                if (command_parts[0] != "type") {
+                    command_found = locate_program(command_parts[0].to_string());
+                } else {
+                    command_found = Some("/usr/bin/type".to_string());
+                }
+
+                match command_found {
                     Some(command_path) => {
-                        let output = Command::new(command_path)
-                            .args([command.replacen(command_parts[0], "", 1).trim()])
-                            .output()
-                            .expect("Failed to execute process");
-                        io::stdout().write_all(&output.stdout).unwrap();
+                        let args = command.replacen(command_parts[0], "", 1).trim().to_owned();
+                        let mut cmd = Command::new(command_path);
+
+                        if args.len() > 0 {
+                            cmd.args([args]);
+                        }
+
+                        io::stdout()
+                            .write_all(&cmd.output().unwrap().stdout)
+                            .unwrap();
+                        io::stderr().write(&cmd.output().unwrap().stderr).unwrap();
                     }
                     None => {
                         println!("Command not found");
@@ -58,11 +72,10 @@ fn locate_program(command_name: String) -> Option<String> {
     match env::var(ENV_PATH) {
         Ok(path) => {
             let paths: Vec<&str> = path.split(":").collect();
-            let mut command_found: Option<String> = None;
 
             for path_item in paths {
                 // Check if the specified command exists in path
-                let command_path = f!("{path_item}/{command_name}");
+                let command_path = f!("{path_item}/{}", command_name.trim());
 
                 if fs::metadata(&command_path).is_ok() {
                     return Some(command_path);
