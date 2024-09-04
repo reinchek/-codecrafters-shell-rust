@@ -124,9 +124,14 @@ fn main() {
                     }
                     Some(MyCommand::Cd) => {
                         if command_parts.len() > 0 {
-                            match std::env::set_current_dir(command_parts[1]) {
+                            let mut path: String = match command_parts[1] {
+                                "~" => std::env::var("HOME").unwrap(),
+                                _ => command_parts[1].to_string(),
+                            };
+
+                            match std::env::set_current_dir(&path) {
                                 Err(_) => {
-                                    println!("cd: {}: No such file or directory", command_parts[1])
+                                    println!("cd: {}: No such file or directory", path)
                                 }
                                 Ok(_) => (),
                             }
